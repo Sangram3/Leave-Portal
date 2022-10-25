@@ -1,11 +1,13 @@
 from flask import  session
-import smtplib
 from flaskext.mysql import MySQL
-from mail_service import MailService
-
-MS = MailService()
+from mail_service import MS
 
 class Database:
+    """
+        Database class handles all the queries related to database.
+        Singleton class, one instance created per session.
+        Takes, username, password, database name, host, and flask app instance as input
+    """
     def __init__(self , user , password , database , host , app) -> None:
         self.app = app
         self.user = user
@@ -13,35 +15,43 @@ class Database:
         self.database = database
         self.host = host
 
-        self.app.config['MYSQL_DATABASE_USER'] = 'root'
-        self.app.config['MYSQL_DATABASE_PASSWORD'] = 'San@2017'
-        self.app.config['MYSQL_DATABASE_DB'] = 'dep'
-        self.app.config['MYSQL_DATABASE_HOST'] = 'localhost'
+        self.app.config['MYSQL_DATABASE_USER'] =  user
+        self.app.config['MYSQL_DATABASE_PASSWORD'] = password
+        self.app.config['MYSQL_DATABASE_DB'] = database
+        self.app.config['MYSQL_DATABASE_HOST'] = host
         self.db = MySQL(app)
 
-
     def is_valid_email(self,email_id):
+        """
+            This function performs email authentication.
+        """
         connect = self.db.connect()
         cursor = connect.cursor()
         cursor.execute("SELECT * FROM user WHERE email_id = %s",(email_id))
         data = cursor.fetchall()
         if not data:
             session.clear()
-            return 0
+            return False
         else:
-            return 1
+            return True
 
     def get_user_data(self,email_id):
+        """
+            This function returns the data of the user corresponding to email_id.
+        """
         connect = self.db.connect()
         cursor = connect.cursor()
         cursor.execute("SELECT * FROM user WHERE email_id = %s",(email_id))
         data = cursor.fetchall()
         return data
 
-    def insert_leave(self,l):
+    def insert_leave(self,leave):
+        """
+            This function inserts a new leave into the database.
+        """
         connect = self.db.connect()
         cursor = connect.cursor()
-        cursor.execute("SELECT user_id, department, position FROM user WHERE email_id = %s",(l['email']))
+        cursor.execute("SELECT user_id, department, position FROM user WHERE email_id = %s",(leave['email']))
         data = cursor.fetchall()
         user_id = data[0][0]
         department = data[0][1]
@@ -50,11 +60,15 @@ class Database:
         cursor.execute("INSERT INTO leaves\
             (department, user_id, nature, purpose, is_station, request_date, start_date, end_date, duration, status, level,file_uploaded) \
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s)",
-            (department, user_id, l['nature'], l['purpose'], l['isStation'], l['rdate'], l['sdate'], l['edate'], l['duration'], 'Pending', position,l['attached_documents']))
+            (department, user_id, leave['nature'], leave['purpose'], leave['isStation'], leave['rdate'], leave['sdate'], leave['edate'], leave['duration'], 'Pending', position,leave['attached_documents']))
         connect.commit()
-        return 1
+        return True
 
     def initialize(self):
+        """
+            Initializes the database.
+            Creates tables if they do not exist in the database.
+        """
         connect = self.db.connect()
         cursor = connect.cursor()
         cursor.execute("drop table if exists leaves")
@@ -105,44 +119,27 @@ class Database:
         );")
         connect.commit()
     
-    
-
     def get_user_dic(self,email):
         data = self.get_user_data(email)[0]
+        mapping = ['user_id','name','email','position','department','total_casual_leaves','taken_casual_leaves','total_restricted_leaves','taken_restricted_leaves',\
+                   'total_earned_leaves','taken_earned_leaves','total_vacation_leaves','taken_vacation_leaves','total_special_leaves','taken_special_leaves',\
+                   'total_commuted_leaves','taken_commuted_leaves','total_hospital_leaves','taken_hospital_leaves','total_study_leaves','taken_study_leaves',\
+                   'total_childcare_leaves','taken_childcare_leaves']
         dic = {}
-        dic['user_id'] = data[0]
-        dic['name'] = data[1]
-        dic['email'] = data[2]
-        dic['position'] = data[3]
-        dic['department'] = data[4]
-        dic['total_casual_leaves'] = data[5]
-        dic['taken_casual_leaves'] = data[6]
-        dic['total_restricted_leaves'] = data[7]
-        dic['taken_restricted_leaves'] = data[8]
-        dic['total_earned_leaves'] = data[9]
-        dic['taken_earned_leaves'] = data[10]
-        dic['total_vacation_leaves'] = data[11]
-        dic['taken_vacation_leaves'] = data[12]
-        dic['total_special_leaves'] = data[13]
-        dic['taken_special_leaves'] = data[14]
-        dic['total_commuted_leaves'] = data[15]
-        dic['taken_commuted_leaves'] = data[16]
-        dic['total_hospital_leaves'] = data[17]
-        dic['taken_hospital_leaves'] = data[18]
-        dic['total_study_leaves'] = data[19]
-        dic['taken_study_leaves'] = data[20]
-        dic['total_childcare_leaves'] = data[21]
-        dic['taken_childcare_leaves'] = data[22]
-
+        for i in range(23):
+            dic[mapping[i]] = data[i]
         return dic
     
     
     def send_update_mail(self,leave_id):
-
+        """
+            Send update on applied leave, to the leave applicant.
+        """
         connect = self.db.connect()
         cursor = connect.cursor()
         cursor.execute('SELECT duration,request_date,start_date,end_date,status,authority_comment,user_id,nature FROM leaves WHERE leave_id = %s',(leave_id))
         tmp = cursor.fetchall()[0]
+
         duration = tmp[0]
         request_date = tmp[1]
         start_date = tmp[2]
@@ -174,13 +171,12 @@ class Database:
             Remaining Casual Leaves - {} days \n\
         """.format(name,nature,status,leave_id,duration,request_date,start_date,end_date,status,authority_comment,total_leaves,taken_leaves,remaining_leaves)
 
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login("leavemanagementiitropar@gmail.com", "gdpzrofppayyvscw")
-        server.sendmail('IIT Ropar Leave OTP',email_id,msg)
-
+        MS.send_mail(receiver=email_id , message=msg , subject="Leave Update - IIT Ropar Leave Management Portal")
 
     def findNextLeaveID(self):
+        """
+            This function returns the the unique new id that can be used to to assign for a leave.
+        """
         connect = self.db.connect()
         cursor = connect.cursor()
         cursor.execute("select max(leave_id) from leaves;")
@@ -195,12 +191,18 @@ class Database:
             return 1
 
     def executeUpdate(self,query):
+        """
+            Function to execute general update query on a table.
+        """
         connect = self.db.connect()
         cursor = connect.cursor()
         cursor.execute(query)
         connect.commit()
         
     def executeSelect(self,query):
+        """
+            Function to execute general select query on a table.
+        """
         connect = self.db.connect()
         cursor = connect.cursor()
         cursor.execute(query)

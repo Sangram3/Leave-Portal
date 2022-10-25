@@ -1,16 +1,15 @@
+from json_reader import jsonReader
 from flask import Flask, jsonify, request, session, Response
 from authlib.integrations.flask_client import OAuth
 from flask_cors import CORS
 import random
 import os
 import pandas as pd
-from pydrive.drive import GoogleDrive
-import os
 
-from google_drive import GoogleDrive
+from google_drive import GD
 from helper_functions import empty_the_folder
 from database import Database
-from database import MS
+from mail_service import MS
 # --------------------------------------------------------- # 
 
 app = Flask(__name__)
@@ -18,19 +17,17 @@ CORS(app, supports_credentials=True)
 
 oauth = OAuth(app)
 
-USER = 'root'
-PASSWORD = '******'
-DATABASE = 'dep'
-HOST = 'localhost'
+keyData = jsonReader.read()
+
+USER = keyData['USER']
+PASSWORD = keyData['PASSWORD']
+DATABASE = keyData['DATABASE']
+HOST = keyData['HOST']
 
 DB = Database(user = USER , password=PASSWORD, database= DATABASE, host = HOST, app = app)
 
 success_code = Response(status=200)
 failiure_code = Response(status=400)
-
-access_token = "ya29.a0Aa4xrXPfOzBn-6ZfDM18ySPUnCdY7b8akhyOtDPEKylmsRAD7GaFRnZIhyjiMGG1TZHQTeC7awqPfH3EHIyxawMZjx3ERLnmZaXDfZDgzI_fNvDFFltvfJXW7sb5K427IkdL3l3TsjRUu-M7GszaHJ9wo4X7aCgYKATASARISFQEjDvL9IDANAyXVGEd_q4jAqG0mCg0163"
-
-GD = GoogleDrive(access_token)
 
 @app.route('/login_oauth', methods = ['POST'])
 def login_oauth():
@@ -183,8 +180,7 @@ def check_leaves():
 
     query = ""
     if position == "hod":
-        query = 'SELECT * FROM leaves WHERE\
-            department = %s and level = %s'%(department, "Faculty")
+        query = "SELECT * FROM leaves WHERE department = '%s' and level = '%s'"%(department, "faculty")
 
     elif position == 'dean':
         query = 'SELECT * FROM leaves'
@@ -255,7 +251,8 @@ def approve_leave():
         DB.executeUpdate(query)
 
     query = "Select user_id, nature, duration from leaves where leave_id = %s"%(leave_id)
-    data = DB.executeSelect(query)
+    data = DB.executeSelect(query)[0]
+
     user_id = data[0]
     nature = data[1]
     duration = float(data[2])
@@ -265,7 +262,7 @@ def approve_leave():
     u_st2 = 'taken_' + nature + 's'
     query = "Select %s from user where user_id = %s" % (u_st2, user_id)
 
-    data = DB.executeSelect(query)
+    data = DB.executeSelect(query)[0]
     taken_cnt = float(data[0]) + duration
     if (nature == "casual_leave" or nature == "restricted_leave") and (user['position']=='hod' or user['position']=='dean'):
         query = "Update user set %s = %s where user_id = %s" % (u_st2, taken_cnt, user_id)
@@ -274,7 +271,7 @@ def approve_leave():
     elif nature != "casual_leave" and nature != "restricted_leave" and user['position']=='dean':
         query = "Update user set %s = %s where user_id = %s" % (u_st2, taken_cnt, user_id)
         DB.executeUpdate(query)
-    # send_update_mail(leave_id)
+    DB.send_update_mail(leave_id)
     return success_code
 
 @app.route('/disapprove_leave', methods = ['POST'])

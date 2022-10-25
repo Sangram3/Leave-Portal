@@ -19,7 +19,7 @@ export default function CheckLeaves({ user }) {
     try {
       const resp = await httpClient.post("//localhost:5000/check_leaves");
       setLeaves(resp["data"]['result'])
-      console.log("Dataa", resp["data"]["result"])
+      // console.log("Dataa", resp["data"]["result"])
       return resp["data"]["result"]
 
     } catch (error) {
@@ -50,8 +50,8 @@ export default function CheckLeaves({ user }) {
 
   const approveLeave = async (leave_id) => {
     try {
-      console.log("Leave Id: ", leave_id);
-      console.log("Leaves", leaves);
+      // console.log("Leave Id: ", leave_id);
+      // console.log("Leaves", leaves);
       let temp = leaves;
       for (let i = 0; i < temp.length; i++) {
         if (temp[i].id == leave_id) {
@@ -59,19 +59,19 @@ export default function CheckLeaves({ user }) {
         }
       }
       setLeaves(temp);
-      console.log(leaves);
-
+      // console.log(leaves);
       const resp = await httpClient.post("//localhost:5000/approve_leave", { leave_id, level: user.level });
       window.location.reload();
     } catch (error) {
-      alert("Some error occurred");
+      
+      // alert("Some error occurred");
     }
   }
 
   const disapproveLeave = async (leave_id) => {
     try {
-      console.log("Leave Id: ", leave_id);
-      console.log("Leaves", leaves);
+      // console.log("Leave Id: ", leave_id);
+      // console.log("Leaves", leaves);
       let temp = leaves;
       for (let i = 0; i < temp.length; i++) {
         if (temp[i].id == leave_id) {
@@ -79,7 +79,7 @@ export default function CheckLeaves({ user }) {
         }
       }
       setLeaves(temp);
-      console.log(leaves);
+      // console.log(leaves);
 
       const resp = await httpClient.post("//localhost:5000/disapprove_leave", { leave_id });
       window.location.reload();
@@ -92,7 +92,7 @@ export default function CheckLeaves({ user }) {
     try {
       const uid = "comment-" + leave_id;
       const comment = document.getElementById(uid).value;
-      console.log("Comment:", comment);
+      // console.log("Comment:", comment);
       const resp = await httpClient.post("//localhost:5000/add_comment", { comment, leave_id });
       window.location.reload();
     } catch (error) {

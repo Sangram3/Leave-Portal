@@ -1,18 +1,27 @@
 import React, { useState, useEffect } from "react";
-import ReactDOM from "react-dom";
+// import ReactDOM from "react-dom";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import httpClient from "./httpClient";
-import Intro from "./components/Intro.js"
+// import Intro from "./components/Intro.js"
 import Dashboard from "./components/Dashboard.js"
 import LoginForm from "./components/LoginForm.js"
 import OtpVerification from "./components/OtpVerification.js"
 import LeaveForm from "./components/LeaveForm.js"
 import DisplayLeaves from "./components/DisplayLeaves.js"
 import CheckLeaves from "./components/CheckLeaves.js"
-import DeanDashboard from "./components/Dashboard.js"
+// import DeanDashboard from "./components/Dashboard.js"
 import Navbar from './components/Navbar.js'
 import './css/App.css';
 
+// const express = require("express")
+// const app = express()
+// const cors = require("cors")
+// app.use(
+//   cors({
+//     origin : "http://127.0.0.1:5500",
+//   })
+// )
+  
 function App() {
   const [user, setUser] = useState({
     email: "",
